@@ -46,9 +46,11 @@ def get_mask_image(masks):
 
 def get_mask_image(image, masks, x, y):
     # Convert (x, y) from percentage coordinates to pixel coordinates
-    width, height = image.size
-    x_pixel = int((x / 100.0) * width)
-    y_pixel = int((y / 100.0) * height)
+    # width, height = image.size
+    # x_pixel = int((x / 100.0) * width)
+    # y_pixel = int((y / 100.0) * height)
+    x_pixel = x
+    y_pixel = y
     
     image_np = np.array(image)
     
@@ -104,8 +106,9 @@ def inpaint_image(init_image, mask_image, control_image, prompt):
     
     return output
 
-def process_image(image, x, y, prompt):
+def process_image(image, prompt, evt: gr.SelectData):
     # 1. Use the Segment Anything model to find the object at the click location
+    x, y = evt.index[0], evt.index[1]
     masks = get_masks(image)
     mask_image = get_mask_image(image, masks, x, y)
     # print_colored('image type is ' + str(type(image)), 'green')
@@ -117,7 +120,7 @@ def process_image(image, x, y, prompt):
     # resized_mask_image = load_image("https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/controlnet-inpaint-mask.jpg").resize((512, 512))
     resized_image = image.resize((512,512))
     resized_mask_image = mask_image.resize((512, 512))
-   
+
     control_image = make_inpaint_condition(resized_image, resized_mask_image)
 
     output = inpaint_image(resized_image, resized_mask_image, control_image, prompt)
@@ -128,15 +131,13 @@ def process_image(image, x, y, prompt):
     
     return output_resized
 
-# Adjusting the Gradio Interface initialization with correct parameters
-iface = gr.Interface(fn=process_image,
-                     inputs=[
-                         gr.Image(type='pil'),  
-                         gr.Number(label="X Click"),
-                         gr.Number(label="Y Click"),
-                         gr.Textbox(label="Prompt")
-                     ],
-                     outputs=gr.Image(),
-                     description="Upload an image to inpaint")
 
-iface.launch()
+with gr.Blocks() as demo:
+    with gr.Row():
+        prompt = gr.Textbox(label="Prompt")
+        input_img = gr.Image(label="Input", type="pil")
+        output_img = gr.Image(label="Inpainted Image")
+        input_img.select(process_image, inputs=[input_img, prompt], outputs=output_img)
+
+if __name__ == "__main__":
+    demo.launch()
